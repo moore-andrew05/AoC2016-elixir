@@ -39,8 +39,7 @@ defmodule Aoc2016.Day01 do
   def part2(input) do
     steps = String.split(input, ", ")
 
-    Enum.reduce_while(steps, {0, 0, 0, MapSet.new()}, fn step,
-                                                                       {dir, x, y, visited} ->
+    Enum.reduce_while(steps, {0, 0, 0, MapSet.new()}, fn step, {dir, x, y, visited} ->
       {curr_dir, val} =
         case step do
           "R" <> val -> {dir + 1, val}
@@ -58,31 +57,35 @@ defmodule Aoc2016.Day01 do
           3 -> {x - val, y}
         end
 
-      passthrough = 
-          case dir_solved do
-            n when n == 0 or n == 2 -> Enum.map(y..newy, fn a -> {x, a} end)
-            n when n == 1 or n == 3 -> Enum.map(x..newx, fn a -> {a, y} end)
-          end
+      passthrough =
+        case dir_solved do
+          n when n == 0 or n == 2 -> Enum.map(y..newy, fn a -> {x, a} end)
+          n when n == 1 or n == 3 -> Enum.map(x..newx, fn a -> {a, y} end)
+        end
+
       [_ | passthrough] = passthrough
 
-      has_key = Enum.any?(passthrough, fn a -> MapSet.member?(visited, a)end)
+      has_key = Enum.any?(passthrough, fn a -> MapSet.member?(visited, a) end)
 
       if has_key do
-        {x, y} = Enum.reduce_while(passthrough, 0, fn pass, _ ->
-          if MapSet.member?(visited, pass) do
-            {:halt, pass}
-          else
-            {:cont, {}}
-          end
-        end)
+        {x, y} =
+          Enum.reduce_while(passthrough, 0, fn pass, _ ->
+            if MapSet.member?(visited, pass) do
+              {:halt, pass}
+            else
+              {:cont, {}}
+            end
+          end)
+
         {:halt, abs(x) + abs(y)}
       else
-        new_visited = 
+        new_visited =
           case dir_solved do
             n when n == 0 or n == 2 -> Enum.map(y..newy, fn a -> {x, a} end)
             n when n == 1 or n == 3 -> Enum.map(x..newx, fn a -> {a, y} end)
           end
           |> MapSet.new()
+
         {:cont, {curr_dir, newx, newy, MapSet.union(visited, new_visited)}}
       end
     end)
