@@ -1,0 +1,47 @@
+defmodule Aoc2016.Day04 do
+  defp input do
+    String.trim(File.read!("priv/inputs/day04.txt"))
+  end
+
+  defp parse_id_and_checksum(s) do
+    Regex.named_captures(~r/\](?<checksum>.*?)\[(?<id>\d+)/, s)
+  end
+
+  def process_row(row) do
+    [checkid | vals] = row
+
+    expected = Enum.join(vals)
+    |> String.graphemes()
+    |> Enum.frequencies()
+    |> Map.to_list()
+    |> Enum.sort_by(&elem(&1, 1), :desc)
+    |> Enum.map(&elem(&1, 0))
+    |> Enum.join()
+    |> String.slice(0..4)
+
+    {check, id} = parse_id_and_checksum(checkid)
+
+    return {expected, check, id}
+  end
+
+  def part1(), do: part1(input())
+
+  def part1(input) do
+    parsed =
+      input
+      |> String.split("\n", trim: true)
+      |> Enum.map(&String.reverse(&1))
+      |> Enum.map(&String.split(&1, "-"))
+
+    res =
+      Enum.map(parsed, fn x ->
+        process_row(x)
+      end)
+
+  end
+
+  def part2(), do: part2(input())
+
+  def part2(input) do
+  end
+end
