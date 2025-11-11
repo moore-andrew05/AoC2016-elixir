@@ -6,7 +6,7 @@ I think this was one of my rougher solutions. Really tested my ability to progra
 
 ```elixir
 def has_abba?(<<a, b, b, a, _::binary>>) when a != b, do: true
-def has_abba?(<<_::binary-size(1), rest::binary>>), do: has_abba?(rest)
+def has_abba?(<<_::8, rest::binary>>), do: has_abba?(rest)
 def has_abba?(_), do: false
 ```
 
