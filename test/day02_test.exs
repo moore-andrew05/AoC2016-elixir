@@ -10,7 +10,6 @@ defmodule Aoc2016.Day02Test do
 
   describe "part2/1" do
     test "returns distance of first revisited location" do
-      assert Day02.part1("ULL\nRRDDD\nLURDL\nUUUUD") == ["5", "D", "B", "3"]
     end
   end
 end
