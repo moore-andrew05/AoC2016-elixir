@@ -27,8 +27,6 @@ defmodule FloorState do
 end
 
 defmodule Aoc2016.Day11 do
-  @elements [:strontium, :plutonium, :thulium, :ruthenium]
-
   defp input do
     String.trim(File.read!("priv/inputs/day11.txt"))
   end
@@ -172,7 +170,7 @@ defmodule Aoc2016.Day11 do
   end
 
   def get_next_states(possibilities, curr_floor, popped_floors, pos, depth, direction, memo) do
-    Enum.reduce(possibilities, {memo, []}, fn carried, {curr_memo, states} ->
+    Enum.reduce(possibilities, {memo, []}, fn carried, {_, states} ->
       curr_floor = MapSet.difference(curr_floor, MapSet.new(carried))
 
       if not valid_floor?(curr_floor) do
