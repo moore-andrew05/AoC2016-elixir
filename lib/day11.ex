@@ -16,6 +16,7 @@ defmodule Item do
   ]
 end
 
+# Keep for now maybe.
 defmodule FloorState do
   @enforce_keys [:floors, :elevator_pos]
   defstruct [
@@ -30,10 +31,6 @@ defmodule Aoc2016.Day11 do
 
   defp input do
     String.trim(File.read!("priv/inputs/day11.txt"))
-  end
-
-  def start_memo do
-    Agent.start_link(fn -> MapSet.new() end, name: __MODULE__)
   end
 
   defp parse_input_row(row) do
