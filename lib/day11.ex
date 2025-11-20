@@ -7,18 +7,12 @@ defmodule RC do
   end
 end
 
+# Attempt 2: We keep this for now.
 defmodule Item do
   @enforce_keys [:element, :type]
   defstruct [
     :element,
     :type
-  ]
-end
-
-defmodule Floor do
-  @enforce_keys [:items]
-  defstruct [
-    :items
   ]
 end
 
