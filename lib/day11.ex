@@ -33,91 +33,8 @@ defmodule Aoc2016.Day11 do
     String.trim(File.read!("priv/inputs/day11.txt"))
   end
 
-  defp parse_input_row(row) do
-    generators =
-      Regex.scan(~r/(?<generators>\w+) generator/, row, capture: :all_but_first)
-      |> List.flatten()
-
-    chips =
-      Regex.scan(~r/(?<microchips>\w+)-compatible microchip/, row, capture: :all_but_first)
-      |> List.flatten()
-
-    generators =
-      generators
-      |> Enum.reduce(MapSet.new(), fn x, gens ->
-        item = %Item{
-          element: String.to_atom(x),
-          type: :gen
-        }
-
-        MapSet.put(gens, item)
-      end)
-
-    chips =
-      chips
-      |> Enum.reduce(MapSet.new(), fn x, chips ->
-        item = %Item{
-          element: String.to_atom(x),
-          type: :chip
-        }
-
-        MapSet.put(chips, item)
-      end)
-
-    %Floor{
-      items: MapSet.union(chips, generators)
-    }
-  end
-
-def canonicalize_state(%FloorState{floors: floors_map, elevator_pos: elevator_pos}) do
-  # build list of {gen_floor, chip_floor} for each element
-  pairs =
-    floors_map
-    |> Enum.flat_map(fn {floor_idx, %Floor{items: items}} ->
-      Enum.map(items, fn %Item{element: el, type: ty} -> {el, ty, floor_idx} end)
-    end)
-    |> Enum.group_by(fn {el, _ty, _f} -> el end)
-    |> Enum.map(fn {_el, items} ->
-      gen_floor =
-        items
-        |> Enum.find_value(fn
-          {_, :gen, f} -> f
-          _ -> nil
-        end)
-
-      chip_floor =
-        items
-        |> Enum.find_value(fn
-          {_, :chip, f} -> f
-          _ -> nil
-        end)
-
-      {gen_floor, chip_floor}
-    end)
-
-  # collect all used floor indices (from pairs and elevator), sort and compress -> new indices 0..n
-  used =
-    (pairs |> Enum.flat_map(fn {g, c} -> [g, c] end)) ++ [elevator_pos]
-    |> Enum.uniq()
-    |> Enum.sort()
-
-  remap = Enum.with_index(used) |> Enum.into(%{}, fn {old, idx} -> {old, idx} end)
-
-  # remap pairs and elevator, sort pairs to remove element identity
-  remapped_pairs =
-    pairs
-    |> Enum.map(fn {g, c} -> {Map.fetch!(remap, g), Map.fetch!(remap, c)} end)
-    |> Enum.sort()
-
-  remapped_elevator = Map.fetch!(remap, elevator_pos)
-
-  # final canonical key: tuple with elevator then tuple-of-pairs
-  {remapped_elevator, List.to_tuple(remapped_pairs)}
-end
-
-  defp elevator_has_items_below?(%FloorState{floors: floors, elevator_pos: pos, depth: _}) do
-    below = Enum.map(0..(pos - 1), &Map.get(floors, &1))
-    Enum.any?(below, fn x -> not Enum.empty?(x.items) end)
+  defp input2 do
+    String.trim(File.read!("priv/inputs/day11b.txt"))
   end
 
   defp process_input(input) do
@@ -131,133 +48,226 @@ end
     res
   end
 
-  defp valid_floor?(floor) do
-    has_generator = Enum.any?(floor.items, fn x -> x.type == :gen end)
+  defp parse_items_from_regex_capture(capture, type) do
+    capture
+    |> Enum.reduce(MapSet.new(), fn x, items ->
+      item = %Item{
+        element: String.to_atom(x),
+        type: type
+      }
 
+      MapSet.put(items, item)
+    end)
+  end
+
+  defp parse_input_row(row) do
+    generators =
+      Regex.scan(~r/(?<generators>\w+) generator/, row, capture: :all_but_first)
+      |> List.flatten()
+
+    chips =
+      Regex.scan(~r/(?<microchips>\w+)-compatible microchip/, row, capture: :all_but_first)
+      |> List.flatten()
+
+    chips = parse_items_from_regex_capture(chips, :chip)
+    generators = parse_items_from_regex_capture(generators, :gen)
+
+    MapSet.union(chips, generators)
+  end
+
+  # Keep this for now but will need heavy mods.
+  def canonicalize_state(%FloorState{floors: floors_map, elevator_pos: elevator_pos}) do
+    pairs =
+      floors_map
+      |> Enum.flat_map(fn {pos, items} ->
+        Enum.map(items, fn %Item{element: element, type: type} -> {element, type, pos} end)
+      end)
+
+    groups =
+      pairs
+      |> Enum.group_by(fn {element, type, _floor} -> {element, type} end)
+      |> Map.values()
+      |> List.flatten()
+      |> Enum.chunk_every(2)
+
+    groups =
+      groups
+      |> Enum.reduce([], fn x, acc ->
+        [h | t] = x
+        t = List.first(t)
+        {h, t} = {elem(h, 2), elem(t, 2)}
+        [{t, h} | acc]
+      end)
+      |> Enum.sort()
+      |> Enum.map(fn x -> Tuple.to_list(x) |> Enum.join() end)
+      |> Enum.join()
+
+    groups <> Integer.to_string(elevator_pos)
+  end
+
+  defp elevator_has_items_below?(%FloorState{floors: floors, elevator_pos: pos, depth: _}) do
+    below = Enum.map(0..(pos - 1), &Map.get(floors, &1))
+    Enum.any?(below, fn x -> not Enum.empty?(x) end)
+  end
+
+  defp chip_conflict?(floor) do
     elems =
-      floor.items
+      floor
       |> Enum.group_by(&{&1.element})
       |> Map.filter(fn {_key, val} -> length(val) == 1 end)
       |> Map.filter(fn {_key, val} -> List.first(val).type == :chip end)
 
-    if map_size(elems) > 0 and has_generator do
-      false
-    else
-      true
+    map_size(elems) > 0
+  end
+
+  defp valid_floor?(floor) do
+    has_generator = Enum.any?(floor, fn x -> x.type == :gen end)
+
+    case has_generator do
+      false -> true
+      true -> not chip_conflict?(floor)
     end
   end
 
-  def is_final?(floor_state) do
-    {_, floors} = Map.pop(floor_state.floors, 3)
+  def is_final?(%FloorState{floors: floor_map}) do
+    {_, floors_below_top} = Map.pop(floor_map, 3)
 
-    floors
+    floors_below_top
     |> Map.values()
-    |> Enum.all?(&Enum.empty?(&1.items))
+    |> Enum.all?(&Enum.empty?(&1))
+  end
+
+  defp carry(curr_floor, popped_floors, pos, depth, items, direction) do
+    offset =
+      case direction do
+        :up -> 1
+        :down -> -1
+      end
+
+    {next_floor, other_floors} = Map.pop(popped_floors, pos + offset)
+    next_floor_state = 
+      case next_floor do
+        nil -> MapSet.new(items)
+        _ -> MapSet.union(next_floor, MapSet.new(items))
+      end
+
+    case valid_floor?(next_floor_state) do
+      true ->
+        new_state =
+          other_floors
+          |> Map.put(pos, curr_floor)
+          |> Map.put(pos + offset, next_floor_state)
+
+        new_state = %FloorState{
+          floors: new_state,
+          elevator_pos: pos + offset,
+          depth: depth + 1
+        }
+
+        {:ok, new_state}
+
+      false ->
+        {:empty, nil}
+    end
+  end
+
+  def get_next_states(possibilities, curr_floor, popped_floors, pos, depth, direction, memo) do
+    Enum.reduce(possibilities, {memo, []}, fn carried, {curr_memo, states} ->
+      curr_floor = MapSet.difference(curr_floor, MapSet.new(carried))
+
+      if not valid_floor?(curr_floor) do
+        {memo, states}
+      else
+        {valid, next_state} = carry(curr_floor, popped_floors, pos, depth, carried, direction)
+        valid = valid == :ok
+
+        case valid and not MapSet.member?(memo, canonicalize_state(next_state)) do
+          true -> {MapSet.put(memo, canonicalize_state(next_state)), [next_state | states]}
+          false -> {memo, states}
+        end
+      end
+    end)
+  end
+
+  def set_to_list_safe(set) do
+    case is_nil(set) do
+      true -> []
+      false -> MapSet.to_list(set)
+    end
   end
 
   def search(queue, depth, prev_depth, states_searched, memo) do
-    if rem(states_searched, 1000) == 0 do
-      IO.puts("Searched #{states_searched} states")
-    end
-
-    prev_depth =
-      if depth > prev_depth do
-        IO.puts("Reached depth #{depth}!")
-        depth
-      else
-        prev_depth
-      end
-
     case :queue.out(queue) do
       {:empty, _} ->
         {:done, depth}
 
       {{:value, floor_state}, rest} ->
-        # Agent.update(__MODULE__, fn state -> MapSet.put(state, {floor_state.floors, floor_state.elevator_pos}) end)
-        %FloorState{floors: floors, elevator_pos: pos, depth: depth} = floor_state
-        memo = MapSet.put(memo, canonicalize_state(floor_state))
+        prev_depth =
+          case depth > prev_depth do
+            true ->
+              IO.puts("New depth of #{depth} reached!")
+              IO.puts("#{states_searched} states searched")
+              IO.puts("Size of memo: #{MapSet.size(memo)}")
+              depth
+
+            _ ->
+              prev_depth
+          end
+
+        %FloorState{floors: floor_map, elevator_pos: pos, depth: depth} = floor_state
 
         if pos == 3 and is_final?(floor_state) do
-          depth
+          IO.puts("Found solution at depth #{depth}!")
         end
 
-        {curr_floor, popped_state} = Map.pop(floors, pos)
+        {curr_floor, popped_state} = Map.pop(floor_map, pos)
 
-        possibilities =
-          Enum.map(curr_floor.items, &[&1]) ++ RC.comb(2, MapSet.to_list(curr_floor.items))
+        take_one = set_to_list_safe(curr_floor)
+        take_two = RC.comb(2, take_one)
+        take_one = Enum.map(take_one, &[&1])
 
-        states =
-          Enum.reduce(possibilities, [], fn x, states ->
-            removed = %Floor{items: MapSet.difference(curr_floor.items, MapSet.new(x))}
+        can_go_up = pos < 3
+        can_go_down = pos > 0 and elevator_has_items_below?(floor_state)
 
-            if not valid_floor?(removed) do
-              states
-            end
+        {memo, up_two_states} =
+          cond do
+            can_go_up ->
+              get_next_states(
+                take_two,
+                curr_floor,
+                popped_state,
+                pos,
+                depth,
+                :up,
+                memo
+              )
 
-            states =
-              if pos == 3 do
-                states
-              else
-                {up, no_floors} = Map.pop(popped_state, pos + 1)
-                up_state = %Floor{items: MapSet.union(up.items, MapSet.new(x))}
+            true ->
+              {memo, []}
+          end
+        {memo, up_states} = 
+          case up_two_states do
+            [] -> get_next_states(take_one, curr_floor, popped_state, pos, depth, :up, memo)
+            _ -> {memo, up_two_states}
+              
+          end
 
-                if valid_floor?(up_state) do
-                  new_state =
-                    no_floors
-                    |> Map.put(pos, removed)
-                    |> Map.put(pos + 1, up_state)
+        {memo, down_states} =
+          cond do
+            can_go_down ->
+              get_next_states(take_one, curr_floor, popped_state, pos, depth, :down, memo)
 
-                  new_state = %FloorState{
-                    floors: new_state,
-                    elevator_pos: pos + 1,
-                    depth: depth + 1
-                  }
+            true ->
+              {memo, []}
+          end
 
-                  [new_state | states]
-                else
-                  states
-                end
-              end
-
-            states =
-              if pos == 0 or (pos > 0 and not elevator_has_items_below?(floor_state)) do
-                states
-              else
-                {down, no_floors} = Map.pop(popped_state, pos - 1)
-                down_state = %Floor{items: MapSet.union(down.items, MapSet.new(x))}
-
-                if valid_floor?(down_state) do
-                  new_state =
-                    no_floors
-                    |> Map.put(pos, removed)
-                    |> Map.put(pos - 1, down_state)
-
-                  new_state = %FloorState{
-                    floors: new_state,
-                    elevator_pos: pos - 1,
-                    depth: depth + 1
-                  }
-
-                  [new_state | states]
-                else
-                  states
-                end
-              end
-
-            states
-          end)
-
-        queue_addition =
-          Enum.reduce(states, [], fn x, queue ->
-            if MapSet.member?(memo, canonicalize_state(x)) do
-              queue
-            else
-              [x | queue]
-            end
+        queue =
+          Enum.reduce(up_states, rest, fn x, acc ->
+            :queue.in(x, acc)
           end)
 
         queue =
-          Enum.reduce(queue_addition, rest, fn x, acc ->
+          Enum.reduce(down_states, queue, fn x, acc ->
             :queue.in(x, acc)
           end)
 
@@ -277,13 +287,20 @@ end
       depth: 0
     }
 
-    starting_state
-    # {:ok, pid} = start_memo()
     search(:queue.from_list([starting_state]), 0, 0, 0, MapSet.new())
   end
 
-  def part2(), do: part2(input())
+  def part2(), do: part2(input2())
 
   def part2(input) do
+    data = process_input(input)
+
+    starting_state = %FloorState{
+      floors: data,
+      elevator_pos: 0,
+      depth: 0
+    }
+
+    search(:queue.from_list([starting_state]), 0, 0, 0, MapSet.new())
   end
 end
