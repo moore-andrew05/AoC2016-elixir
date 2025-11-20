@@ -1,6 +1,5 @@
 defmodule Aoc2016.Day08 do
   @row_size 50
-  @col_size 6
   @rect_regex ~r/rect (?<x>\d+)x(?<y>\d+)/
   @row_regex ~r/rotate row y=(?<y>\d+) by (?<n>\d+)/
   @col_regex ~r/rotate column x=(?<x>\d+) by (?<n>\d+)/
