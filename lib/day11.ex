@@ -143,7 +143,8 @@ defmodule Aoc2016.Day11 do
       end
 
     {next_floor, other_floors} = Map.pop(popped_floors, pos + offset)
-    next_floor_state = 
+
+    next_floor_state =
       case next_floor do
         nil -> MapSet.new(items)
         _ -> MapSet.union(next_floor, MapSet.new(items))
@@ -203,9 +204,9 @@ defmodule Aoc2016.Day11 do
         prev_depth =
           case depth > prev_depth do
             true ->
-              IO.puts("New depth of #{depth} reached!")
-              IO.puts("#{states_searched} states searched")
-              IO.puts("Size of memo: #{MapSet.size(memo)}")
+              # IO.puts("New depth of #{depth} reached!")
+              # IO.puts("#{states_searched} states searched")
+              # IO.puts("Size of memo: #{MapSet.size(memo)}")
               depth
 
             _ ->
@@ -214,62 +215,66 @@ defmodule Aoc2016.Day11 do
 
         %FloorState{floors: floor_map, elevator_pos: pos, depth: depth} = floor_state
 
-        if pos == 3 and is_final?(floor_state) do
-          IO.puts("Found solution at depth #{depth}!")
+        solution_found = pos == 3 and is_final?(floor_state)
+
+        case solution_found do
+          true ->
+            search(:queue.new(), depth, prev_depth, states_searched, memo)
+
+          false ->
+            {curr_floor, popped_state} = Map.pop(floor_map, pos)
+
+            take_one = set_to_list_safe(curr_floor)
+            take_two = RC.comb(2, take_one)
+            take_one = Enum.map(take_one, &[&1])
+
+            can_go_up = pos < 3
+            can_go_down = pos > 0 and elevator_has_items_below?(floor_state)
+
+            {memo, up_two_states} =
+              cond do
+                can_go_up ->
+                  get_next_states(
+                    take_two,
+                    curr_floor,
+                    popped_state,
+                    pos,
+                    depth,
+                    :up,
+                    memo
+                  )
+
+                true ->
+                  {memo, []}
+              end
+
+            {memo, up_states} =
+              case up_two_states do
+                [] -> get_next_states(take_one, curr_floor, popped_state, pos, depth, :up, memo)
+                _ -> {memo, up_two_states}
+              end
+
+            {memo, down_states} =
+              cond do
+                can_go_down ->
+                  get_next_states(take_one, curr_floor, popped_state, pos, depth, :down, memo)
+
+                true ->
+                  {memo, []}
+              end
+
+            queue =
+              Enum.reduce(up_states, rest, fn x, acc ->
+                :queue.in(x, acc)
+              end)
+
+            queue =
+              Enum.reduce(down_states, queue, fn x, acc ->
+                :queue.in(x, acc)
+              end)
+
+            search(queue, depth, prev_depth, states_searched + 1, memo)
         end
-
-        {curr_floor, popped_state} = Map.pop(floor_map, pos)
-
-        take_one = set_to_list_safe(curr_floor)
-        take_two = RC.comb(2, take_one)
-        take_one = Enum.map(take_one, &[&1])
-
-        can_go_up = pos < 3
-        can_go_down = pos > 0 and elevator_has_items_below?(floor_state)
-
-        {memo, up_two_states} =
-          cond do
-            can_go_up ->
-              get_next_states(
-                take_two,
-                curr_floor,
-                popped_state,
-                pos,
-                depth,
-                :up,
-                memo
-              )
-
-            true ->
-              {memo, []}
-          end
-        {memo, up_states} = 
-          case up_two_states do
-            [] -> get_next_states(take_one, curr_floor, popped_state, pos, depth, :up, memo)
-            _ -> {memo, up_two_states}
-              
-          end
-
-        {memo, down_states} =
-          cond do
-            can_go_down ->
-              get_next_states(take_one, curr_floor, popped_state, pos, depth, :down, memo)
-
-            true ->
-              {memo, []}
-          end
-
-        queue =
-          Enum.reduce(up_states, rest, fn x, acc ->
-            :queue.in(x, acc)
-          end)
-
-        queue =
-          Enum.reduce(down_states, queue, fn x, acc ->
-            :queue.in(x, acc)
-          end)
-
-        search(queue, depth, prev_depth, states_searched + 1, memo)
     end
   end
 
@@ -285,7 +290,8 @@ defmodule Aoc2016.Day11 do
       depth: 0
     }
 
-    search(:queue.from_list([starting_state]), 0, 0, 0, MapSet.new())
+    {time, {_, {_, sol_depth}}} = :timer.tc(fn -> {:done, search(:queue.from_list([starting_state]), 0, 0, 0, MapSet.new())}end)
+    IO.puts("Solution found at depth #{sol_depth} in time #{time / 1_000_000}s.")
   end
 
   def part2(), do: part2(input2())
@@ -299,6 +305,7 @@ defmodule Aoc2016.Day11 do
       depth: 0
     }
 
-    search(:queue.from_list([starting_state]), 0, 0, 0, MapSet.new())
+    {time, {_, {_, sol_depth}}} = :timer.tc(fn -> {:done, search(:queue.from_list([starting_state]), 0, 0, 0, MapSet.new())}end)
+    IO.puts("Solution found at depth #{sol_depth} in time #{time / 1_000_000}s.")
   end
 end
