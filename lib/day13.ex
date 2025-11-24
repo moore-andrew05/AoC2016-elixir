@@ -75,8 +75,6 @@ defmodule Aoc2016.Day13 do
           end)
         bfs(rest, {tx, ty}, visited, favorite_number, highest_depth, depth_limit, states_visited + 1)
     end
-
-
   end
 
   def part1(), do: part1(input())
