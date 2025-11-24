@@ -30,20 +30,9 @@ defmodule Disc do
       true -> false
     end
   end
-
-  defp get_first_n_valid(disc, n) do
-    first = __MODULE__.get_first_valid(disc)
-
-    Enum.reduce(0..(n - 1), MapSet.new(), fn x, valid ->
-      val = first + x * disc.num
-      MapSet.put(valid, val)
-    end)
-  end
 end
 
 defmodule Aoc2016.Day15 do
-  require Math
-
   defp input do
     String.trim(File.read!("priv/inputs/day15.txt"))
   end
