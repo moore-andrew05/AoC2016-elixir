@@ -11,8 +11,9 @@ defmodule Aoc2016.Day19 do
       x when x <= 0 -> {curr_round, attempted_jump}
       x when x > 0 -> {curr_round + 1, rem(1 + attempted_jump - (num_elves - curr_position), num_elves)}
     end
-    
   end
+
+  get_first_valid(1)
 
 
   def find_position(num_elves, max_rounds, curr_position, curr_round, last_round) do
